@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interpretability Transfer from Language to Vision via Sparse Autoencoders (ICML 2026)</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Quicksand:wght@300;400;500;600;700&family=Exo+2:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --light-bg: #f8f9fa;
+            --gradient-1: #6a11cb;
+            --gradient-2: #2575fc;
+            --gradient-3: #ff416c;
+            --gradient-4: #ff4b2b;
+        }
+
+        body { font-family: 'Quicksand', sans-serif; color: var(--primary-color); }
+
+        /* ── Hero ── */
+        .hero-section {
+            background: linear-gradient(45deg, var(--gradient-1), var(--gradient-2), var(--gradient-3), var(--gradient-4));
+            background-size: 400% 400%;
+            animation: gradient-animation 15s ease infinite;
+            color: white; padding: 2.5rem 0;
+            position: relative; overflow: hidden;
+            box-shadow: 0 4px 30px rgba(0,0,0,0.2);
+        }
+        @keyframes gradient-animation {
+            0%   { background-position: 0% 50%; }
+            50%  { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .hero-section::before {
+            content: ""; position: absolute; top:0; left:0; width:100%; height:100%;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 1000'%3E%3Cdefs%3E%3Cstyle%3Ecircle%7Bfill:%23ffffff;fill-opacity:0.15%7D%3C/style%3E%3C/defs%3E%3Cg%3E%3Ccircle cx='300' cy='200' r='80'/%3E%3Ccircle cx='800' cy='400' r='60'/%3E%3Ccircle cx='150' cy='600' r='40'/%3E%3Ccircle cx='700' cy='700' r='100'/%3E%3Ccircle cx='450' cy='300' r='30'/%3E%3Ccircle cx='600' cy='150' r='50'/%3E%3Ccircle cx='250' cy='850' r='70'/%3E%3Ccircle cx='900' cy='200' r='45'/%3E%3C/g%3E%3C/svg%3E");
+            opacity: 0.3;
+        }
+        .hero-particles { position:absolute; top:0; left:0; width:100%; height:100%; overflow:hidden; }
+        .particle {
+            position:absolute; display:block; pointer-events:none;
+            background-color:rgba(255,255,255,0.5); border-radius:50%;
+            animation: float 15s infinite ease-in-out;
+        }
+        @keyframes float {
+            0%,100% { transform:translateY(0) translateX(0); }
+            25%     { transform:translateY(-30px) translateX(30px); }
+            50%     { transform:translateY(-10px) translateX(10px); }
+            75%     { transform:translateY(-20px) translateX(-20px); }
+        }
+        .title-container {
+            position:relative; z-index:10; backdrop-filter:blur(5px);
+            background-color:rgba(0,0,0,0.1); border-radius:20px;
+            padding:1.5rem; box-shadow:0 8px 32px rgba(0,0,0,0.1); transition:transform 0.5s;
+        }
+        .title-container:hover { transform:perspective(1000px) rotateX(2deg); }
+        .main-title {
+            font-family:'Exo 2',sans-serif; font-weight:700;
+            text-shadow:2px 2px 5px rgba(0,0,0,0.2);
+            background:linear-gradient(to right,#ffffff,#dcdcdc);
+            -webkit-background-clip:text; background-clip:text; color:transparent;
+            margin-bottom:0.5rem; font-size:2.2rem;
+        }
+
+        /* ── Authors ── */
+        .authors-container { display:flex; flex-direction:column; align-items:center; }
+        .authors-row { display:flex; justify-content:center; flex-wrap:wrap; margin-bottom:0.5rem; }
+        .author-badge {
+            display:flex; flex-direction:column; align-items:center; text-align:center;
+            padding:0.5rem 1.2rem; margin:0.35rem; border-radius:50px;
+            background-color:rgba(255,255,255,0.2); backdrop-filter:blur(10px);
+            color:white; transition:all 0.3s; box-shadow:0 4px 6px rgba(0,0,0,0.1);
+            border:1px solid rgba(255,255,255,0.1); font-family:'Exo 2',sans-serif;
+            font-weight:600; letter-spacing:0.5px;
+        }
+        .author-institution {
+            font-size:0.72rem; font-weight:400; opacity:0.85;
+            display:block; margin-top:3px; font-family:'Quicksand',sans-serif;
+        }
+
+        /* ── Section titles ── */
+        .section-title {
+            font-family:'Exo 2',sans-serif; text-transform:uppercase;
+            position:relative; margin-bottom:2rem; padding-bottom:1rem;
+            font-weight:800; display:inline-block;
+            color:var(--primary-color); letter-spacing:3px;
+        }
+        .section-title::before {
+            content:""; position:absolute; bottom:0; left:0;
+            width:100%; height:3px; background-color:var(--primary-color); border-radius:3px;
+        }
+
+        /* ── Sections ── */
+        section { padding:2.5rem 0 !important; }
+        .section-abstract   { background:linear-gradient(to bottom,#ffffff,#f8f9fa); }
+        .section-method     { background:linear-gradient(to bottom,#f0f3f6,#ffffff); }
+        .section-method-alt { background:linear-gradient(to bottom,#ffffff,#f0f3f6); }
+        .section-results    { background:linear-gradient(135deg,#f6f9fc,#eef2f7); }
+        .section-citation   { background:linear-gradient(to bottom,#ffffff,#f0f3f6); }
+
+        /* ── Abstract box ── */
+        .abstract-box {
+            background-color:var(--light-bg); border-left:4px solid var(--secondary-color);
+            border-radius:0 15px 15px 0; padding:1.5rem; margin-bottom:1rem;
+            box-shadow:0 10px 20px rgba(0,0,0,0.05);
+        }
+
+        /* ── Method box ── */
+        .method-box {
+            background-color:white; border-radius:15px; padding:2rem;
+            box-shadow:0 10px 25px rgba(0,0,0,0.05); margin-bottom:1rem;
+            border-left:4px solid var(--secondary-color);
+        }
+
+        /* ── Figure box ── */
+        .figure-box {
+            background:white; border-radius:12px; box-shadow:0 6px 20px rgba(0,0,0,0.07);
+            padding:1rem; text-align:center; height:100%;
+        }
+        .figure-box img { width:100%; border-radius:6px; border:1px solid rgba(0,0,0,0.06); }
+        .figure-box object {
+            width:100%; border-radius:6px; border:1px solid rgba(0,0,0,0.06); display:block;
+        }
+        .fig-caption {
+            margin-top:0.7rem; font-size:0.82rem; font-style:italic; color:#666; line-height:1.4;
+        }
+
+        /* ── Stat callout ── */
+        .stat-callout {
+            text-align:center; padding:1.5rem; border-radius:15px;
+            background:white; box-shadow:0 8px 20px rgba(0,0,0,0.07); height:100%;
+        }
+        .stat-number {
+            font-family:'Exo 2',sans-serif; font-size:3rem;
+            font-weight:800; color:var(--accent-color); line-height:1;
+        }
+        .stat-label { font-size:0.9rem; color:#555; margin-top:0.4rem; }
+
+        /* ── 2×2 localization grid ── */
+        .loc-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+        .loc-grid img { width:100%; border-radius:6px; }
+        .loc-label { text-align:center; font-size:0.78rem; font-style:italic; color:#555; margin-top:3px; }
+
+        /* ── Citation ── */
+        .citation-box {
+            background-color:white; border-radius:15px; padding:2rem;
+            box-shadow:0 10px 25px rgba(0,0,0,0.05); font-family:monospace;
+            font-size:0.9rem; border:1px solid rgba(0,0,0,0.05); text-align:center;
+        }
+        .citation-box pre { display:inline-block; text-align:left; margin:0 auto; }
+        .copy-button { cursor:pointer; color:var(--secondary-color); transition:all 0.3s; }
+        .copy-button:hover { color:var(--accent-color); transform:scale(1.2); }
+
+        /* ── Scroll animation ── */
+        .animate-on-scroll { opacity:0; transform:translateY(30px); transition:all 0.8s ease-out; }
+        .animate-on-scroll.visible { opacity:1; transform:translateY(0); }
+
+        .figure-box-sm img,
+        .figure-box-sm object {
+            max-width: 60%;
+            margin: 0 auto;
+            display: block;
+        }
+
+        .figure-box-sm1 img,
+        .figure-box-sm1 object {
+            max-width: 45%;
+            margin: 0 auto;
+            display: block;
+        }
+
+        .figure-box-sm-abs img,
+        .figure-box-sm-abs object {
+            max-width: 45%;
+            margin: 0 auto;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════ HERO ══════════════════════════════════════ -->
+<section class="hero-section text-center">
+    <div class="hero-particles"></div>
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-10">
+                <div class="title-container">
+                    <img src="static/ICML-logo.png" alt="ICML 2026"
+                            style="max-height:100px;margin-bottom:1rem;filter:drop-shadow(0 0 6px rgba(255,255,255,0.4));">
+                    <h1 class="main-title">Interpretability Transfer from Language to Vision via Sparse Autoencoders</h1>
+                    <div class="authors-container mt-3">
+                        <div class="authors-row">
+                            <span class="author-badge">Alexey Kravets<span class="author-institution">University of Bath</span></span>
+                            <span class="author-badge">Da Li<span class="author-institution">Samsung AI</span></span>
+                            <span class="author-badge">Chuan Li<span class="author-institution">Lambda, Inc.</span></span>
+                            <span class="author-badge">Da Chen<span class="author-institution">University of Bath</span></span>
+                            <span class="author-badge">Vinay P. Namboodiri<span class="author-institution">University of Bath</span></span>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-center flex-wrap mt-3">
+                        <a href="https://arxiv.org/abs/2605.24946" class="btn btn-outline-light m-2"
+                            style="border-radius:30px;backdrop-filter:blur(5px);background-color:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.5);">
+                            <i class="fas fa-file-pdf me-2"></i>Paper
+                        </a>
+                        <a href="https://github.com/akres001/Interpretability-Transfer-from-Language-to-Vision-via-Sparse-Autoencoders" class="btn btn-outline-light m-2"
+                            style="border-radius:30px;backdrop-filter:blur(5px);background-color:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.5);">
+                            <i class="fab fa-github me-2"></i>GitHub
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════════════ ABSTRACT ══════════════════════════════════ -->
+<section class="section-abstract py-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-9 animate-on-scroll">
+                <h2 class="section-title">Abstract</h2>
+                <div class="abstract-box">
+                    <p class="mb-0">Recent advances in language model interpretability using sparse autoencoders (SAEs) have yet to effectively translate to the visual domain, mainly due to the difficulty and ambiguity of labeling visual concepts. In this paper, we introduce <strong>Visual Interpretability via SAE Transfer Alignment (VISTA)</strong>, a framework that transfers interpretability from language to vision in a LLaVA-style vision-language model by constraining a visual projector to map visual tokens into an LLM's pre-existing, labeled textual SAE space. This approach enables visual interpretability without training dedicated vision SAEs. By regularizing the projector using the LLM's SAE reconstruction loss, VISTA achieves a <strong>threefold increase in the matching rate</strong>, which measures how accurately the most activating textual concepts in the SAE space correspond to semantic elements in the image. Using this framework, we further analyze spatial localization properties of different vision encoders and show that <strong>DINOv2 features have stronger localization abilities</strong> than other encoders. Leveraging this precision, we validate VISTA's cross-modal alignment through fine-grained, localized concept interventions, where specific objects are removed or replaced in the model's perception while preserving the surrounding scene. This results in improvements of <strong>35% in object removal</strong> and <strong>47% in object replacement</strong> tasks over vision-only baselines, providing causal evidence that visual tokens inhabit the text SAE manifold. These contributions are validated across multiple LLM architectures.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════════ KEY RESULTS ═══════════════════════════════════ -->
+<section class="py-4" style="background:#f0f3f6;">
+    <div class="container">
+        <div class="row g-4 animate-on-scroll">
+            <div class="col-md-4">
+                <div class="stat-callout">
+                    <div class="stat-number">3×</div>
+                    <div class="stat-label">average improvement in <strong>matching rate</strong> with SAE constraints</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-callout">
+                    <div class="stat-number">35%</div>
+                    <div class="stat-label">improvement in <strong>object removal</strong> over vision-only baselines</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-callout">
+                    <div class="stat-number">47%</div>
+                    <div class="stat-label">improvement in <strong>replacement tasks</strong> over vision-only baselines</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════════ CORE PROBLEM ══════════════════════════════════ -->
+<section class="section-method py-5">
+    <div class="container">
+        <div class="animate-on-scroll"><h2 class="section-title">Core Problem</h2></div>
+        <div class="row g-4 animate-on-scroll">
+            <div class="col-lg-4">
+                <div class="method-box h-100">
+                    <h5><i class="fas fa-exclamation-triangle me-2" style="color:var(--accent-color);"></i>The Challenge</h5>
+                    <p class="mb-0">Large Vision-Language Models have powerful visual reasoning capabilities, but their internal representations are difficult to interpret due to <strong>polysemanticity</strong> — individual neurons respond to many unrelated concepts simultaneously.</p>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="method-box h-100" style="border-left-color:#e67e22;">
+                    <h5><i class="fas fa-eye me-2" style="color:#e67e22;"></i>Vision-Only SAEs</h5>
+                    <p class="mb-0">Monosemantic features from vision-only SAEs are <strong>difficult to label automatically</strong>. They also do not reveal how visual features are actually interpreted once they enter the LLM's residual stream.</p>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="method-box h-100" style="border-left-color:var(--accent-color);">
+                    <h5><i class="fas fa-server me-2" style="color:var(--accent-color);"></i>Fine-tuning Textual SAEs</h5>
+                    <p class="mb-0">Fine-tuning existing textual SAEs is <strong>extremely expensive</strong>: Gemma Scope required ~20% of GPT-3's total compute and 20 PB of storage — plus significant re-labelling effort.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════ VISTA METHOD ══════════════════════════════════════ -->
+<section class="section-method-alt py-5">
+    <div class="container">
+        <div class="animate-on-scroll"><h2 class="section-title">VISTA: Visual Interpretability via SAE Transfer Alignment</h2></div>
+
+        <!-- Core question -->
+        <div class="row mb-4 animate-on-scroll">
+            <div class="col-12">
+                <div class="method-box" style="border-left-color:#6a11cb;background:linear-gradient(to right,#faf7ff,white);">
+                    <h5 class="fw-bold mb-0"><i class="fas fa-lightbulb me-2" style="color:#6a11cb;"></i>Core Question: Can we reuse existing, labelled language SAEs to interpret visual concepts?</h5>
+                </div>
+            </div>
+        </div>
+
+        <!-- Core idea row -->
+        <div class="row g-4 mb-4 animate-on-scroll">
+            <div class="col-lg-3 col-md-6">
+                <div class="method-box h-100" style="border-left-color:#6a11cb;">
+                    <h6 class="fw-bold"><i class="fas fa-snowflake me-2" style="color:#6a11cb;"></i>Frozen Components</h6>
+                    <p class="mb-0" style="font-size:0.9rem;">Both the vision encoder and the LLM are kept frozen to leverage existing semantic knowledge.</p>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="method-box h-100" style="border-left-color:var(--secondary-color);">
+                    <h6 class="fw-bold"><i class="fas fa-bullseye me-2" style="color:var(--secondary-color);"></i>Dual Objective</h6>
+                    <p class="mb-0" style="font-size:0.9rem;">A multimodal projector is trained with Cross-Entropy loss + <em>SAE Reconstruction Loss</em>.</p>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="method-box h-100" style="border-left-color:#e67e22;">
+                    <h6 class="fw-bold"><i class="fas fa-project-diagram me-2" style="color:#e67e22;"></i>Feature Mapping</h6>
+                    <p class="mb-0" style="font-size:0.9rem;">Forces visual tokens directly into the LLM's pre-existing, labelled text-based SAE feature space.</p>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="method-box h-100" style="border-left-color:#27ae60;">
+                    <h6 class="fw-bold"><i class="fas fa-bolt me-2" style="color:#27ae60;"></i>Efficient</h6>
+                    <p class="mb-0" style="font-size:0.9rem;">Only the alignment projector is trained — no new SAEs, no re-labelling.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- VISTA framework figure -->
+        <div class="row animate-on-scroll">
+            <div class="col-lg-9 mx-auto">
+                <div class="figure-box">
+                    <img src="static/main.png" alt="VISTA framework">
+                    <p class="fig-caption">
+                        <strong>VISTA Framework.</strong>
+                        <strong>Training:</strong> A trainable projector maps tokens from a frozen vision encoder to a frozen LLM, optimized via Cross-Entropy and an auxiliary SAE Reconstruction Loss to force alignment of the visual embeddings with the manifold defined by pre-trained Text SAEs.
+                        <strong>Visual Interpretability:</strong> Once aligned, highly activating visual tokens can be interpreted via the Text SAE. Activating latents are searched in Neuronpedia for their linguistic labels that correspond to the visual concept in the patch, such as "Dog" concept in the patch showing the dog.
+                        <strong>Steering:</strong> By manipulating specific SAE concepts in localized visual tokens, model's output can be precisely steered (changing "A running dog" to "A running cat") preserving global context.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+
+<!-- ══════════════════════ ALIGNMENT DYNAMICS ════════════════════════════════ -->
+<section class="section-method py-5">
+    <div class="container">
+        <div class="animate-on-scroll"><h2 class="section-title">Alignment Dynamics &amp; Interpretability</h2></div>
+
+        <!-- Explanation row -->
+        <div class="row g-4 mb-4 animate-on-scroll">
+            <div class="col-lg-6">
+                <div class="p-3 rounded h-100" style="background:#fff5f5;border:1px solid #f5c6cb;">
+                    <h6 class="fw-bold" style="color:#c0392b;"><i class="fas fa-layer-group me-2"></i>Without SAE Constraints</h6>
+                    <p class="mb-0" style="font-size:0.9rem;">Visual tokens only align with text features in <strong>deeper layers</strong>. In certain LLMs, this alignment does not happen naturally at all.</p>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="p-3 rounded h-100" style="background:#f0fff4;border:1px solid #c3e6cb;">
+                    <h6 class="fw-bold" style="color:#27ae60;"><i class="fas fa-layer-group me-2"></i>With SAE Constraints (VISTA)</h6>
+                    <p class="mb-0" style="font-size:0.9rem;">Alignment is induced <strong>immediately from layer 0</strong>, across all architectures — making VISTA essential for models that fail to align naturally.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Figures side by side -->
+        <div class="row g-4 animate-on-scroll">
+            <div class="col-lg-6">
+                <div class="figure-box">
+                    <img src="static/reconst_sparsity_dinov2_nosae_l0.png" alt="Reconstruction and sparsity without SAE">
+                    <p class="fig-caption">Reconstruction &amp; sparsity across layers <strong>without</strong> SAE constraints (DINOv2). Alignment only emerges in later layers.</p>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="figure-box">
+                    <img src="static/reconst_sparsity_dinov2_wsae_01234_l0.png" alt="Reconstruction and sparsity with SAE">
+                    <p class="fig-caption">Reconstruction &amp; sparsity across layers <strong>with</strong> SAE constraints (DINOv2). Alignment is immediate from layer 0.</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+
+<!-- ══════════════════════ MATCHING RATE ═════════════════════════════════════ -->
+<section class="section-method-alt py-5">
+    <div class="container">
+        <div class="animate-on-scroll"><h2 class="section-title">Matching Rate</h2></div>
+        <div class="row g-4 align-items-center animate-on-scroll">
+
+            <!-- Chart -->
+            <div class="col-lg-6">
+                <div class="figure-box">
+                    <img src="static/matchrate_dinov2.png" alt="Matching rate across layers (DINOv2)">
+                    <p class="fig-caption">LLM-Verified Matching Rate across layers for DINOv2 backbone. SAE constraints improve matching rate by more than <strong>threefold</strong> on average across layers and across different visual encoders and LLM backbones.</p>
+                </div>
+            </div>
+
+            <!-- Explanation -->
+            <div class="col-lg-5">
+                <div class="method-box h-100">
+                    <h5><i class="fas fa-chart-line me-2" style="color:var(--secondary-color);"></i>LLM-Verified Matching Rate</h5>
+                    <p>Measures how accurately the most activating text SAE concepts activating on the visual tokens correspond to semantic elements visible in the image, as verified by an oracle LLM.</p>
+                    <ul class="mb-0">
+                        <li class="mb-2">SAE constraints improve matching rate by more than <strong>threefold</strong> on average across layers.</li>
+                        <li class="mb-2">This improvement generalises across different visual encoders and LLM backbones.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════ SPATIAL LOCALIZATION ══════════════════════════════ -->
+<section class="section-method py-5">
+    <div class="container">
+        <div class="animate-on-scroll"><h2 class="section-title">Spatial Localization Accuracy</h2></div>
+        <div class="row g-4 align-items-center animate-on-scroll">
+
+            <!-- 2×2 image grid -->
+            <div class="col-lg-6">
+                <div class="figure-box figure-box-sm">
+                    <div class="loc-grid">
+                        <div>
+                            <img src="static/location_catonsofa_dinov2.jpg" alt="Cat on sofa – DINOv2">
+                            <p class="loc-label">(a) Cat (DINOv2)</p>
+                        </div>
+                        <div>
+                            <img src="static/location_girlcake_dinov2.jpg" alt="Girl eating cake – DINOv2">
+                            <p class="loc-label">(b) Cake (DINOv2)</p>
+                        </div>
+                        <div>
+                            <img src="static/location_catonsofa_clip.jpg" alt="Cat on sofa – CLIP">
+                            <p class="loc-label">(c) Cat (CLIP)</p>
+                        </div>
+                        <div>
+                            <img src="static/location_girlcake_clip.jpg" alt="Girl eating cake – CLIP">
+                            <p class="loc-label">(d) Cake (CLIP)</p>
+                        </div>
+                    </div>
+                    <p class="fig-caption mt-2">Highlighted patches show which tokens activate the target concept feature. DINOv2 (top row) correctly localises the object; CLIP (bottom row) produces imprecise localization.</p>
+                </div>
+            </div>
+
+            <!-- Explanation -->
+            <div class="col-lg-6">
+                <div class="method-box h-100">
+                    <h5><i class="fas fa-map-marker-alt me-2" style="color:var(--secondary-color);"></i>Why spatial fidelity matters</h5>
+                    <p>Precise local interpretability depends heavily on the choice of the vision encoder and its <strong>spatial fidelity</strong>.</p>
+                    <ul class="mb-0">
+                        <li class="mb-2"><strong>DINOv2</strong> gives high and stable spatial localization across LLM backbones.</li>
+                        <li class="mb-2"><strong>CLIP</strong> yields lower and less stable spatial localization.</li>
+                        <li>Spatial fidelity is important not only for interpretability but also for <strong>precise visual steering</strong> — the model must know <em>where</em> the concept lives to modify it accurately.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════ FINE-GRAINED VISUAL STEERING ══════════════════════ -->
+<section class="section-results py-5">
+    <div class="container">
+        <div class="animate-on-scroll"><h2 class="section-title">Fine-grained Visual Steering</h2></div>
+
+        <!-- ── Qualitative examples ── -->
+        <div class="animate-on-scroll mb-3">
+            <h4 class="fw-bold" style="font-family:'Exo 2',sans-serif;">Qualitative Examples</h4>
+        </div>
+
+        <!-- Example 1: cat on couch -->
+        <div class="row g-4 align-items-stretch mb-4 animate-on-scroll">
+            <div class="col-lg-4">
+                <div class="figure-box figure-box-sm1 h-100 d-flex flex-column justify-content-center">
+                    <img src="static/cat_coach.jpg" alt="Cat sitting on a couch">
+                </div>
+            </div>
+            <div class="col-lg-8">
+                <div class="method-box h-100" style="border-left-color:#6a11cb;font-size:0.92rem;">
+                    <p class="mb-2"><strong>Q: What is shown in this image?</strong></p>
+                    <p class="mb-2"><strong>Original:</strong> The image shows a cat sitting on a couch with a pillow. The cat is looking at the camera.</p>
+                    <p class="mb-2"><strong>Remove "cat":</strong> The image shows a couch with a person sitting on it. The person is wearing a white shirt and has a red scarf around their neck.</p>
+                    <p class="mb-0"><strong>Replace with "dog":</strong> The image shows a dog sitting on a couch with a pillow. The dog is a white and tan mix.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Example 2: girl eating cake -->
+        <div class="row g-4 align-items-stretch mb-5 animate-on-scroll">
+            <div class="col-lg-4">
+                <div class="figure-box figure-box-sm1 h-100 d-flex flex-column justify-content-center">
+                    <img src="static/girl_eating_cake.jpg" alt="Girl eating a chocolate chip cookie">
+                </div>
+            </div>
+            <div class="col-lg-8">
+                <div class="method-box h-100" style="border-left-color:#6a11cb;font-size:0.92rem;">
+                    <p class="mb-2"><strong>Q: What is shown in this image?</strong></p>
+                    <p class="mb-2"><strong>Original:</strong> The image shows a girl eating a chocolate chip cookie. The girl is holding a cookie in her hand and is eating it.</p>
+                    <p class="mb-2"><strong>Remove "chocolate":</strong> This image shows a girl with a large amount of food on her face. The girl is eating a sandwich.</p>
+                    <p class="mb-0"><strong>Replace with "bread":</strong> This image shows a girl with shirt. She is holding a piece of bread in her hand.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Abstract steering examples ── -->
+        <div class="animate-on-scroll mb-3">
+            <h4 class="fw-bold" style="font-family:'Exo 2',sans-serif;">Abstract Steering Examples</h4>
+            <p class="text-muted" style="font-size:0.9rem;">We steer <em>Danger</em>, <em>Sleeping</em>, and <em>Sadness</em>. In all cases, the steering vector inverts the model's interpretation (Steered) vs the original (Baseline).</p>
+            <p style="font-size:0.9rem;">Such concepts are binary in language but lack a fixed visual signature; for instance, <em>"danger"</em> can manifest through aggression, instability, or environmental hazards. This demonstrates another advantage of steering with text-aligned SAEs over visual ones.</p>
+        </div>
+        <div class="row g-3 mb-5 animate-on-scroll">
+            <div class="col-lg-4 col-md-6">
+                <div class="figure-box figure-box-sm-abs">
+                    <img src="static/dog_danger.jpg" alt="Dog – danger concept">
+                    <p class="fig-caption">
+                        <strong>Steering: Danger.</strong><br>
+                        <em>Q: Is the dog safe to approach?</em><br>
+                        <span style="color:#27ae60;font-weight:600;">Baseline:</span> "Yes, the dog is safe to approach."<br>
+                        <span style="color:#e74c3c;font-weight:600;">Steered:</span> "No, the dog shown is not safe to approach."
+                    </p>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-6">
+                <div class="figure-box figure-box-sm-abs">
+                    <img src="static/dog_sleeps.jpg" alt="Dog – sleeping concept">
+                    <p class="fig-caption">
+                        <strong>Steering: Sleeping.</strong><br>
+                        <em>Q: Is the dog awake or sleeping?</em><br>
+                        <span style="color:#27ae60;font-weight:600;">Baseline:</span> "The dog is awake and standing on the bathroom floor."<br>
+                        <span style="color:#e74c3c;font-weight:600;">Steered:</span> "The dog is sleeping on the bathroom floor."
+                    </p>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-6">
+                <div class="figure-box figure-box-sm-abs">
+                    <img src="static/dog_sad.jpg" alt="Dog – sad concept">
+                    <p class="fig-caption">
+                        <strong>Steering: Sadness.</strong><br>
+                        <em>Q: Is the dog happy?</em><br>
+                        <span style="color:#27ae60;font-weight:600;">Baseline:</span> "The dog is happy because it is playing with a soccer ball."<br>
+                        <span style="color:#e74c3c;font-weight:600;">Steered:</span> "No, the dog is not happy."
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Quantitative results table ── -->
+        <div class="animate-on-scroll mb-3">
+            <h4 class="fw-bold" style="font-family:'Exo 2',sans-serif;">Quantitative Results</h4>
+        </div>
+        <div class="animate-on-scroll">
+            <div class="figure-box" style="overflow-x:auto;">
+                <table class="steering-table" style="width:100%;border-collapse:collapse;font-size:0.88rem;font-family:'Quicksand',sans-serif;">
+                    <thead>
+                        <tr>
+                            <th rowspan="2" style="border-bottom:2px solid #2c3e50;padding:10px 14px;text-align:left;">Method</th>
+                            <th rowspan="2" style="border-bottom:2px solid #2c3e50;padding:10px 14px;text-align:left;">Vision Encoder</th>
+                            <th colspan="4" style="border-bottom:1px solid #aaa;padding:8px 14px;text-align:center;background:#f0f4f8;">Remove</th>
+                            <th style="padding:4px;background:white;"></th>
+                            <th colspan="4" style="border-bottom:1px solid #aaa;padding:8px 14px;text-align:center;background:#f0f4f8;">Replace</th>
+                        </tr>
+                        <tr>
+                            <th style="padding:8px 10px;text-align:center;background:#f0f4f8;border-bottom:2px solid #2c3e50;">S2</th>
+                            <th style="padding:8px 10px;text-align:center;background:#f0f4f8;border-bottom:2px solid #2c3e50;">S1</th>
+                            <th style="padding:8px 10px;text-align:center;background:#f0f4f8;border-bottom:2px solid #2c3e50;">S0</th>
+                            <th style="padding:8px 10px;text-align:center;background:#f0f4f8;border-bottom:2px solid #2c3e50;">MS</th>
+                            <th style="background:white;border-bottom:2px solid #2c3e50;"></th>
+                            <th style="padding:8px 10px;text-align:center;background:#f0f4f8;border-bottom:2px solid #2c3e50;">S2</th>
+                            <th style="padding:8px 10px;text-align:center;background:#f0f4f8;border-bottom:2px solid #2c3e50;">S1</th>
+                            <th style="padding:8px 10px;text-align:center;background:#f0f4f8;border-bottom:2px solid #2c3e50;">S0</th>
+                            <th style="padding:8px 10px;text-align:center;background:#f0f4f8;border-bottom:2px solid #2c3e50;">MS</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- VisionSAE -->
+                        <tr style="border-top:1px solid #e0e0e0;">
+                            <td rowspan="2" style="padding:8px 14px;font-weight:700;vertical-align:middle;">VisionSAE</td>
+                            <td style="padding:8px 14px;color:#555;">CLIP Global</td>
+                            <td style="padding:8px 10px;text-align:center;">11</td><td style="padding:8px 10px;text-align:center;">84</td><td style="padding:8px 10px;text-align:center;">5</td><td style="padding:8px 10px;text-align:center;">1.06</td>
+                            <td style="background:#f8f8f8;"></td>
+                            <td style="padding:8px 10px;text-align:center;">8</td><td style="padding:8px 10px;text-align:center;">49</td><td style="padding:8px 10px;text-align:center;">43</td><td style="padding:8px 10px;text-align:center;">0.65</td>
+                        </tr>
+                        <tr style="border-top:1px solid #f0f0f0;">
+                            <td style="padding:8px 14px;color:#555;">CLIP Local</td>
+                            <td style="padding:8px 10px;text-align:center;">24</td><td style="padding:8px 10px;text-align:center;">23</td><td style="padding:8px 10px;text-align:center;">53</td><td style="padding:8px 10px;text-align:center;">0.71</td>
+                            <td style="background:#f8f8f8;"></td>
+                            <td style="padding:8px 10px;text-align:center;">23</td><td style="padding:8px 10px;text-align:center;">14</td><td style="padding:8px 10px;text-align:center;">63</td><td style="padding:8px 10px;text-align:center;">0.60</td>
+                        </tr>
+                        <!-- PatchSAE -->
+                        <tr style="border-top:2px solid #e0e0e0;">
+                            <td style="padding:8px 14px;font-weight:700;">PatchSAE</td>
+                            <td style="padding:8px 14px;color:#555;">CLIP Local</td>
+                            <td style="padding:8px 10px;text-align:center;">5</td><td style="padding:8px 10px;text-align:center;">55</td><td style="padding:8px 10px;text-align:center;">40</td><td style="padding:8px 10px;text-align:center;">0.65</td>
+                            <td style="background:#f8f8f8;"></td>
+                            <td style="padding:8px 10px;text-align:center;">34</td><td style="padding:8px 10px;text-align:center;">31</td><td style="padding:8px 10px;text-align:center;">35</td><td style="padding:8px 10px;text-align:center;">0.99</td>
+                        </tr>
+                        <!-- Ablation (No SAE) -->
+                        <tr style="border-top:2px solid #e0e0e0;background:#fafafa;">
+                            <td rowspan="3" style="padding:8px 14px;font-weight:700;vertical-align:middle;">Ablation<br><span style="font-weight:400;font-size:0.82rem;">(No SAE)</span></td>
+                            <td style="padding:8px 14px;color:#555;">DINOv2</td>
+                            <td style="padding:8px 10px;text-align:center;">10</td><td style="padding:8px 10px;text-align:center;">2</td><td style="padding:8px 10px;text-align:center;">88</td><td style="padding:8px 10px;text-align:center;">0.22</td>
+                            <td style="background:#f0f0f0;"></td>
+                            <td style="padding:8px 10px;text-align:center;">3</td><td style="padding:8px 10px;text-align:center;">0</td><td style="padding:8px 10px;text-align:center;">97</td><td style="padding:8px 10px;text-align:center;">0.06</td>
+                        </tr>
+                        <tr style="border-top:1px solid #ebebeb;background:#fafafa;">
+                            <td style="padding:8px 14px;color:#555;">CLIP</td>
+                            <td style="padding:8px 10px;text-align:center;">13</td><td style="padding:8px 10px;text-align:center;">20</td><td style="padding:8px 10px;text-align:center;">67</td><td style="padding:8px 10px;text-align:center;">0.46</td>
+                            <td style="background:#f0f0f0;"></td>
+                            <td style="padding:8px 10px;text-align:center;">16</td><td style="padding:8px 10px;text-align:center;">6</td><td style="padding:8px 10px;text-align:center;">78</td><td style="padding:8px 10px;text-align:center;">0.38</td>
+                        </tr>
+                        <tr style="border-top:1px solid #ebebeb;background:#fafafa;">
+                            <td style="padding:8px 14px;color:#555;">I-JEPA</td>
+                            <td style="padding:8px 10px;text-align:center;">8</td><td style="padding:8px 10px;text-align:center;">18</td><td style="padding:8px 10px;text-align:center;">74</td><td style="padding:8px 10px;text-align:center;">0.34</td>
+                            <td style="background:#f0f0f0;"></td>
+                            <td style="padding:8px 10px;text-align:center;">20</td><td style="padding:8px 10px;text-align:center;">9</td><td style="padding:8px 10px;text-align:center;">71</td><td style="padding:8px 10px;text-align:center;">0.49</td>
+                        </tr>
+                        <!-- VISTA -->
+                        <tr style="border-top:2px solid #2c3e50;background:#eef6ff;">
+                            <td rowspan="3" style="padding:8px 14px;font-weight:800;vertical-align:middle;color:#2575fc;">VISTA</td>
+                            <td style="padding:8px 14px;font-weight:700;">DINOv2</td>
+                            <td style="padding:8px 10px;text-align:center;font-weight:700;color:var(--accent-color);">47</td>
+                            <td style="padding:8px 10px;text-align:center;">49</td>
+                            <td style="padding:8px 10px;text-align:center;">4</td>
+                            <td style="padding:8px 10px;text-align:center;font-weight:700;color:var(--accent-color);">1.43</td>
+                            <td style="background:#d8eaff;"></td>
+                            <td style="padding:8px 10px;text-align:center;font-weight:700;color:var(--accent-color);">59</td>
+                            <td style="padding:8px 10px;text-align:center;">28</td>
+                            <td style="padding:8px 10px;text-align:center;">13</td>
+                            <td style="padding:8px 10px;text-align:center;font-weight:700;color:var(--accent-color);">1.46</td>
+                        </tr>
+                        <tr style="border-top:1px solid #cce0ff;background:#eef6ff;">
+                            <td style="padding:8px 14px;color:#555;">CLIP</td>
+                            <td style="padding:8px 10px;text-align:center;">18</td><td style="padding:8px 10px;text-align:center;">4</td><td style="padding:8px 10px;text-align:center;">78</td><td style="padding:8px 10px;text-align:center;">0.40</td>
+                            <td style="background:#d8eaff;"></td>
+                            <td style="padding:8px 10px;text-align:center;">7</td><td style="padding:8px 10px;text-align:center;">4</td><td style="padding:8px 10px;text-align:center;">89</td><td style="padding:8px 10px;text-align:center;">0.18</td>
+                        </tr>
+                        <tr style="border-top:1px solid #cce0ff;border-bottom:2px solid #2c3e50;background:#eef6ff;">
+                            <td style="padding:8px 14px;color:#555;">I-JEPA</td>
+                            <td style="padding:8px 10px;text-align:center;">8</td><td style="padding:8px 10px;text-align:center;">25</td><td style="padding:8px 10px;text-align:center;">67</td><td style="padding:8px 10px;text-align:center;">0.41</td>
+                            <td style="background:#d8eaff;"></td>
+                            <td style="padding:8px 10px;text-align:center;">17</td><td style="padding:8px 10px;text-align:center;">47</td><td style="padding:8px 10px;text-align:center;">36</td><td style="padding:8px 10px;text-align:center;">0.81</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p class="fig-caption mt-3 text-center">
+                    <strong>Table 2.</strong> Quantitative analysis of steering using Gemma-2-2B LLM backbone.
+                    <strong>S2</strong>: scene preserved &nbsp;|&nbsp;
+                    <strong>S1</strong>: edit with hallucinated extras &nbsp;|&nbsp;
+                    <strong>S0</strong>: failed steering &nbsp;|&nbsp;
+                    <strong>MS</strong> = (2·N<sub>S2</sub> + N<sub>S1</sub>) / N<sub>total</sub> ∈ [0, 2].
+                    VISTA + DINOv2 achieves the best MS in both Remove and Replace tasks.
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════ FEATURE CLUSTERING ════════════════════════════════ -->
+<section class="section-method-alt py-5">
+    <div class="container">
+        <div class="animate-on-scroll"><h2 class="section-title">Feature Clustering</h2></div>
+        <div class="row g-4 align-items-center animate-on-scroll">
+            <div class="col-lg-7">
+                <div class="figure-box figure-box-sm">
+                    <img src="static/combined_plot_clustering_birds.jpg" alt="Feature clustering – birds">
+                    <p class="fig-caption">Feature clustering visualisation on "birds" SAE concept.</p>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="method-box h-100">
+                    <h5><i class="fas fa-project-diagram me-2" style="color:var(--secondary-color);"></i>Structured Feature Space</h5>
+                    <p>The aligned SAE feature space can be utilized to <strong>cluster images based on shared semantic attributes</strong>. To perform clustering, we first select the top activating tokens from the image, then find the images that activate on the same concept.</p>
+                    <p class="mb-0">This yields coherent semantic clusters, confirming that visual tokens <strong>inherit the language model's structured organization</strong>.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════ CONCLUSIONS ═══════════════════════════════════════ -->
+<section class="section-method py-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-9 animate-on-scroll">
+                <h2 class="section-title">Conclusions</h2>
+                <div class="abstract-box">
+                    <ul class="mb-0">
+                        <li class="mb-3">VISTA successfully <strong>transfers linguistic interpretability to the visual domain</strong>, eliminating the need for expensive SAE training or manual labelling.</li>
+                        <li class="mb-3">Localized steering is <strong>backbone-dependent</strong>: DINOv2's high spatial fidelity outperforms CLIP for both interpretability and precise concept steering.</li>
+                        <li>VISTA constraints induce <strong>immediate convergence to the linguistic manifold</strong>, even in architectures like LLaMA-3.1-8B-Instruct that fail to align naturally in standard training.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════ BIBTEX ════════════════════════════════════════════ -->
+<section class="section-citation py-5">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-12 animate-on-scroll">
+                <h2 class="section-title">BibTeX</h2>
+                <div class="citation-box position-relative">
+                    <i class="fas fa-copy position-absolute top-0 end-0 m-3 copy-button" title="Copy citation"></i>
+                    <pre>@InProceedings{kravets2026vista,
+  author    = {Kravets, Alexey and Li, Da and Li, Chuan and Chen, Da and Namboodiri, Vinay P.},
+  title     = {{Interpretability Transfer from Language to Vision via Sparse Autoencoders}},
+  booktitle = {Proceedings of the International Conference on Machine Learning (ICML)},
+  year      = {2026}
+}</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════ FOOTER ════════════════════════════════════════════ -->
+<footer class="py-4 bg-dark text-white">
+    <div class="container text-center">
+        <p class="mb-0">&copy; 2026 — Interpretability Transfer from Language to Vision via Sparse Autoencoders</p>
+    </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+<script>
+    // Animate on scroll
+    const animateEls = document.querySelectorAll('.animate-on-scroll');
+    function checkVisibility() {
+        animateEls.forEach(el => {
+            const pos = el.getBoundingClientRect();
+            if (pos.top < window.innerHeight && pos.bottom >= 0) el.classList.add('visible');
+        });
+    }
+    checkVisibility();
+    window.addEventListener('scroll', checkVisibility);
+
+    // Hero particles
+    const particleContainer = document.querySelector('.hero-particles');
+    for (let i = 0; i < 15; i++) {
+        const size = Math.floor(Math.random() * 50) + 10;
+        const p = document.createElement('span');
+        p.classList.add('particle');
+        p.style.cssText = `width:${size}px;height:${size}px;left:${Math.random()*100}%;top:${Math.random()*100}%;opacity:${Math.random()*0.5+0.1};animation-delay:${Math.random()*5}s;animation-duration:${Math.random()*10+10}s`;
+        particleContainer.appendChild(p);
+    }
+
+    // Copy BibTeX
+    document.querySelector('.copy-button').addEventListener('click', () => {
+        navigator.clipboard.writeText(document.querySelector('.citation-box pre').textContent);
+    });
+</script>
+</body>
+</html>

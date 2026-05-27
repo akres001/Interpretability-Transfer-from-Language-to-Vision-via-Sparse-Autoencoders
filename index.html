@@ -179,6 +179,38 @@
             margin: 0 auto;
             display: block;
         }
+
+        .authors-clean {
+            text-align: center;
+            color: white;
+        }
+        .author-names {
+            font-family: 'Exo 2', sans-serif;
+            font-weight: 600;
+            font-size: 1.15rem;
+            letter-spacing: 0.3px;
+        }
+        .author-link {
+            color: white;
+            text-decoration: none;
+            transition: opacity 0.2s;
+        }
+        .author-link:hover {
+            color: white;
+            opacity: 0.75;
+            text-decoration: underline;
+        }
+        .author-affiliations {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            font-family: 'Quicksand', sans-serif;
+        }
+        .author-names sup,
+        .author-affiliations sup {
+            font-size: 0.55em;
+            font-weight: 300;
+            opacity: 0.85;
+        }
     </style>
 </head>
 <body>
@@ -193,13 +225,18 @@
                     <img src="static/ICML-logo.png" alt="ICML 2026"
                             style="max-height:100px;margin-bottom:1rem;filter:drop-shadow(0 0 6px rgba(255,255,255,0.4));">
                     <h1 class="main-title">Interpretability Transfer from Language to Vision via Sparse Autoencoders</h1>
-                    <div class="authors-container mt-3">
-                        <div class="authors-row">
-                            <span class="author-badge">Alexey Kravets<span class="author-institution">University of Bath</span></span>
-                            <span class="author-badge">Da Li<span class="author-institution">Samsung AI</span></span>
-                            <span class="author-badge">Chuan Li<span class="author-institution">Lambda, Inc.</span></span>
-                            <span class="author-badge">Da Chen<span class="author-institution">University of Bath</span></span>
-                            <span class="author-badge">Vinay P. Namboodiri<span class="author-institution">University of Bath</span></span>
+                    <div class="authors-clean mt-3">
+                        <div class="author-names">
+                            <a href="#" class="author-link">Alexey Kravets</a><sup> 1</sup>,
+                            <a href="#" class="author-link">Da Li</a><sup> 2</sup>,
+                            <a href="#" class="author-link">Chuan Li</a><sup> 3</sup>,
+                            <a href="#" class="author-link">Da Chen</a><sup> 1</sup>,
+                            <a href="#" class="author-link">Vinay P. Namboodiri</a><sup> 1</sup>
+                        </div>
+                        <div class="author-affiliations mt-2">
+                            <sup>1 </sup>University of Bath &nbsp;&nbsp;
+                            <sup>2 </sup>Samsung AI &nbsp;&nbsp;
+                            <sup>3 </sup>Lambda, Inc. &nbsp;&nbsp;
                         </div>
                     </div>
                     <div class="d-flex justify-content-center flex-wrap mt-3">
@@ -555,7 +592,7 @@
         </div>
         <div class="animate-on-scroll">
             <div class="figure-box" style="overflow-x:auto;">
-                <table class="steering-table" style="width:100%;border-collapse:collapse;font-size:0.88rem;font-family:'Quicksand',sans-serif;">
+                <table class="steering-table" style="width:100%;border-collapse:collapse;font-size:1rem;font-family:'Quicksand',sans-serif;">
                     <thead>
                         <tr>
                             <th rowspan="2" style="border-bottom:2px solid #2c3e50;padding:10px 14px;text-align:left;">Method</th>

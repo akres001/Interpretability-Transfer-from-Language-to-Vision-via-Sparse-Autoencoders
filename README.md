@@ -60,6 +60,9 @@ pip install -r requirements.txt
 
 Open each `.sh` script and set the values at the top — tokens (HF, Neuronpedia), `PROJECTOR` path, model/vision choice, and sample counts.
 
+The evaluation scripts (matching rate, steering, localization) use Gemini via Google Vertex AI. You'll need a Vertex service-account key saved as `vertexkey.json`.
+
+
 ## Layout <a name="layout"></a>
 
 ```

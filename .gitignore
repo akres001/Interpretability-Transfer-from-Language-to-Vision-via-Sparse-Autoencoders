@@ -1,0 +1,8 @@
+vertexkey.json
+data/*
+results/*
+*.ipynb
+__pycache__/
+.ipynb_checkpoints/
+wandb
+.DS_Store
